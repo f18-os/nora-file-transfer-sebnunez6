@@ -90,18 +90,15 @@ class ClientThread(Thread):
             data = data[100:]
             try:
                 fs.sendmsg(line)
-                print("received:", fs.receivemsg())
             except BrokenPipeError:
                 print("disconnected start again")
                 sys.exit(0)
         #sends left over bits
         if len(data) > 0:
             fs.sendmsg(data)
-            print("received:", fs.receivemsg())
         try:
         #tells server file has ended
             fs.sendmsg(b"\'end\'")
-            print("received:", fs.receivemsg())
         except BrokenPipeError:
             print("disconnected start again")
             sys.exit(0)

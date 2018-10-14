@@ -1,10 +1,10 @@
 #! /usr/bin/env python3
 import sys, os, socket, params, time
 from threading import Thread
+import threading
 from framedSock import FramedStreamSock
 if not  os.path.isdir("Server"):
     os.makedirs("Server")
-    os.chdir("Server")
 switchesVarDefaults = (
     (('-l', '--listenPort') ,'listenPort', 50001),
 (('-d', '--debug'), "debug", False), # boolean (set if present)
@@ -39,7 +39,7 @@ class ServerThread(Thread):
             start = start.decode()
         except AttributeError:
             print("error exiting: ", start)
-            sys.exit(0)
+            return
 
         count = 0
         for char in start:
@@ -55,6 +55,12 @@ class ServerThread(Thread):
 
         #opening file
         file = open((start[0] ).strip(),"wb+")
+        #lock the server
+        requestNum = ServerThread.requestCount
+        ServerThread.requestCount = requestNum + 1
+        if lock:
+            lock.acquire(True)
+            print("Thread is now locked for input", requestNum)
 
         #Receives input while file has not ended
         while True:
@@ -70,25 +76,16 @@ class ServerThread(Thread):
                 break
             #checking if end of file else writes to file
             if b"\'end\'" in payload:
-                self.fsock.sendmsg(payload)
+                lock.release()
+                print("releasing lock for other threads")
                 file.close()
-                break
+                return
             else:
                 file.write(payload)
-                self.fsock.sendmsg(payload)
-
-        # while True:
-        #     msg = self.fsock.receivemsg()
-        #     if not msg:
-        #         if self.debug: print(self.fsock, "server thread done")
-        #         return
-        #     requestNum = ServerThread.requestCount
-        #     time.sleep(0.001) #if file in dictionary stop here
-        #     ServerThread.requestCount = requestNum + 1
-        #     msg = ("%s! (%d)" % (msg, requestNum)).encode()
-        #     self.fsock.sendmsg(msg)
 
 
 while True:
     sock, addr = lsock.accept()
+    #creating lock object
+    lock = threading.Lock()
     ServerThread(sock, debug)
